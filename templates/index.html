@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>比手势</title>
+	<meta charset="UTF-8">
+	<!-- import CSS -->
+	<link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+</head>
+<body>
+<div id="app">
+	<el-row>
+		<p class="text-center">
+			耽误大家一分钟时间，麻烦大家根据提示用手比划对应的数字并点击确定，本系统绝对会保证大家的隐私安全，谢谢您的支持！
+		</p>
+	</el-row>
+	<el-row>
+
+		<el-col :span="6" :offset="6">
+			<h3 class="text-center">比手势</h3>
+			<div>
+				<el-row id="videos">
+					<el-col :span="24">
+						<video autoplay ref="player"></video>
+					</el-col>
+				</el-row>
+				<p class="text-center">
+					请用手比出 [[ number ]] 这个数字，然后点击确定
+				</p>
+				<p class="text-center">
+					<el-button @click="take">确定</el-button>
+				</p>
+			</div>
+		</el-col>
+		<el-col :span="6" v-show="lastNumber != null">
+			<h3 class="text-center">结果</h3>
+			<div>
+				<canvas id="canvas" :width="width" :height="height"></canvas>
+				<p class="text-center">您比的数字：[[ lastNumber ]]</p>
+			</div>
+		</el-col>
+	</el-row>
+</div>
+</body>
+<!-- import Vue before Element -->
+<script src="https://unpkg.com/vue/dist/vue.js"></script>
+<!-- import JavaScript -->
+<script src="https://unpkg.com/element-ui/lib/index.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+<script>
+	Vue.options.delimiters = ["[[", "]]"]
+	new Vue({
+		el: '#app',
+		data() {
+			return {
+				videoHeight: null,
+				constraints: {
+					audio: false,
+					video: true
+				},
+				stream: null,
+				screenshot: null,
+				number: 0,
+				lastNumber: null,
+				width: 640,
+				height: 480,
+			}
+		},
+		computed: {},
+		mounted() {
+			this.initCamera()
+		},
+		methods: {
+			initMedia(constraints, success, error) {
+				if (navigator.mediaDevices.getUserMedia) {
+					//最新标准API
+					navigator.mediaDevices.getUserMedia(constraints).then(success).catch(error)
+				} else if (navigator.webkitGetUserMedia) {
+					//webkit核心浏览器
+					navigator.webkitGetUserMedia(constraints, success, error)
+				} else if (navigator.mozGetUserMedia) {
+					//firefox浏览器
+					navigator.mozGetUserMedia(constraints, success, error)
+				} else if (navigator.getUserMedia) {
+					//旧版API
+					navigator.getUserMedia(constraints, success, error)
+				}
+			},
+			initCamera() {
+				if (navigator.mediaDevices.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.getUserMedia) {
+					this.initMedia(this.constraints, this.handleCamera, this.handleError)
+				}
+			},
+			handleCamera(stream) {
+				this.stream = stream
+				this.$refs.player.srcObject = stream
+			},
+			handleError(error) {
+				console.log('navigator.getUserMedia error: ', error)
+				alert('获取摄像头及音频失败')
+			},
+			take() {
+				let canvas = document.getElementById('canvas')
+				canvas.width = this.width
+				canvas.height = this.height
+				this.lastNumber = this.number
+				this.number += 1
+				if (this.number === 11) {
+					this.number = 0
+				}
+				canvas.getContext('2d').drawImage(this.$refs.player, 0, 0)
+				this.screenshot = canvas.toDataURL('image/webp')
+				$.ajax({
+					method: 'POST',
+					url: '/save',
+					data: {
+						image: this.screenshot,
+						number: this.lastNumber
+					},
+					dataType: 'json',
+					success: ({ok: ok}) => {
+						if (ok) {
+							this.$message.success('感谢支持！可继续比下一个手势~')
+						}
+					}
+				})
+			}
+		}
+	})
+</script>
+<style>
+	video, canvas {
+		width: 100%;
+	}
+
+	.text-center {
+		text-align: center;
+	}
+
+</style>
+</html>
