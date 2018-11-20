@@ -1,2 +1,2 @@
 # Finger
-Collector of Finger Gestures
+Collector Tool of Finger Gestures
